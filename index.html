@@ -11,7 +11,7 @@
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+        "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
       }
     }
     </script>
@@ -19,7 +19,7 @@
 <body style="margin: 0; overflow: hidden;">
     <!-- Scène AR -->
     <div id="ar-container" style="width: 100vw; height: 100vh; overflow: hidden;">
-        <video id="ar-video" width="640" height="480" style="display: none;"></video>
+        <video id="ar-video" width="640" height="480" style="display: none;"></video> <!-- Masqué par défaut -->
     </div>
 
     <!-- Importation des modules et démarrage de l'application -->
@@ -39,17 +39,36 @@
         video.src = "./assets/video.mp4";  // Chemin vers ta vidéo
         video.load();
 
+        let isPlaying = false;
+
         const start = async () => {
             await mindarThree.start();
+            
+            // Boucle de rendu et mise à jour de la texture vidéo
             renderer.setAnimationLoop(() => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    videoTexture.needsUpdate = true;
+                }
                 renderer.render(scene, camera);
             });
 
             // Créer une texture vidéo
             const videoTexture = new THREE.VideoTexture(video);
 
+            video.addEventListener('canplay', () => {
+                const videoAspectRatio = video.videoWidth / video.videoHeight;
+                
+                // Ajuster l'échelle pour correspondre à l'image scannée
+                const imageAspectRatio = 1; // Par défaut, tu peux ajuster selon les dimensions de l'image scannée
+                const scaleX = videoAspectRatio >= imageAspectRatio ? 1 : videoAspectRatio / imageAspectRatio;
+                const scaleY = videoAspectRatio >= imageAspectRatio ? imageAspectRatio / videoAspectRatio : 1;
+
+                plane.scale.set(scaleX, scaleY, 1);
+                videoTexture.needsUpdate = true; 
+            });
+
             // Créer un plan 3D avec la texture vidéo
-            const geometry = new THREE.PlaneGeometry(1, 1); // Dimensions ajustables
+            const geometry = new THREE.PlaneGeometry(1, 1); // Dimensions par défaut 1x1
             const material = new THREE.MeshBasicMaterial({ map: videoTexture });
             const plane = new THREE.Mesh(geometry, material);
 
@@ -59,14 +78,31 @@
 
             // Jouer la vidéo quand l'image est détectée
             anchor.onTargetFound = () => {
-                video.play();
-                video.style.display = 'block';
+                if (!isPlaying) {
+                    video.play();
+                    isPlaying = true;
+                }
+                video.style.display = 'none'; // S'assurer que l'élément <video> reste caché
             };
 
-            // Arrêter la vidéo si l'image n'est plus détectée
+            // Mettre en pause la vidéo si l'image est hors champ, ou si elle est trop éloignée
             anchor.onTargetLost = () => {
                 video.pause();
-                video.style.display = 'none';
+                isPlaying = false;
+                video.style.display = 'none'; // Cacher l'élément <video> pour éviter tout affichage en dehors de la texture
+            };
+
+            // Vérifier la distance et enlever le plan si l'image est trop loin
+            anchor.onTargetUpdated = (event) => {
+                const distance = event.detail.distance;
+                const maxDistance = 1.5; // Ajuster cette valeur selon la distance maximale acceptable
+                if (distance > maxDistance) {
+                    anchor.group.visible = false;
+                    video.pause();
+                    isPlaying = false;
+                } else {
+                    anchor.group.visible = true;
+                }
             };
         }
 
