@@ -4,7 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR avec Photos Personnelles</title>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@0.5.0/dist/mindar.js"></script>
+
+    <!-- Importation des modules via importmap -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
+    }
+    </script>
 </head>
 <body style="margin: 0; overflow: hidden;">
     <!-- Scène AR -->
@@ -12,9 +22,13 @@
         <video id="ar-video" width="640" height="480" style="display: none;"></video>
     </div>
 
-    <script>
-        // Initialisation de MindAR avec ton fichier .mind
-        const mindarThree = new MindAR.Three.MindARThree({
+    <!-- Importation des modules et démarrage de l'application -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { MindARThree } from 'mindar-image-three';
+
+        // Initialisation de MindARThree avec ton fichier .mind
+        const mindarThree = new MindARThree({
             container: document.querySelector('#ar-container'),
             imageTargetSrc: './assets/targets.mind',  // Chemin vers ton fichier .mind
         });
