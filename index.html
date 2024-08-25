@@ -3,47 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Image to Video</title>
-    <!-- Import A-Frame and MindAR.js -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/MindAR-js/aframe/dist/aframe-mindar.js"></script>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-            width: 100%;
-        }
-        a-scene {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
+    <title>AR avec Photos Personnelles</title>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@0.5.0/dist/mindar.js"></script>
 </head>
-<body>
-    <!-- AR Scene -->
-    <a-scene mindar="imageTargetSrc: assets/targets.mind; autoStart: true;" 
-             embedded 
-             vr-mode-ui="enabled: false" 
-             device-orientation-permission-ui="enabled: true">
-        
-        <!-- Assets -->
-        <a-assets>
-            <img id="target-image" src="assets/your_image.jpg">
-            <video id="target-video" src="assets/video.mp4" autoplay loop="true" webkit-playsinline playsinline></video>
-        </a-assets>
+<body style="margin: 0; overflow: hidden;">
+    <!-- Scène AR -->
+    <div id="ar-container" style="width: 100vw; height: 100vh; overflow: hidden;">
+        <video id="ar-video" width="640" height="480" style="display: none;"></video>
+    </div>
 
-        <!-- Image Target and Video -->
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-video src="#target-video" position="0 0 0" width="1" height="0.75"></a-video>
-        </a-entity>
+    <script>
+        // Initialisation de MindAR avec ton fichier .mind
+        const mindarThree = new MindAR.Three.MindARThree({
+            container: document.querySelector('#ar-container'),
+            imageTargetSrc: './assets/targets.mind',  // Chemin vers ton fichier .mind
+        });
 
-        <!-- Camera -->
-        <a-camera></a-camera>
-    </a-scene>
+        const { renderer, scene, camera } = mindarThree;
+
+        const video = document.querySelector('#ar-video');
+        video.src = "./assets/video.mp4";  // Chemin vers ta vidéo
+        video.load();
+
+        const start = async () => {
+            await mindarThree.start();
+            renderer.setAnimationLoop(() => {
+                renderer.render(scene, camera);
+            });
+
+            // Créer une texture vidéo
+            const videoTexture = new THREE.VideoTexture(video);
+
+            // Créer un plan 3D avec la texture vidéo
+            const geometry = new THREE.PlaneGeometry(1, 1); // Dimensions ajustables
+            const material = new THREE.MeshBasicMaterial({ map: videoTexture });
+            const plane = new THREE.Mesh(geometry, material);
+
+            // Ajouter le plan à la scène
+            const anchor = mindarThree.addAnchor(0); // Utiliser l'index de la cible
+            anchor.group.add(plane);
+
+            // Jouer la vidéo quand l'image est détectée
+            anchor.onTargetFound = () => {
+                video.play();
+                video.style.display = 'block';
+            };
+
+            // Arrêter la vidéo si l'image n'est plus détectée
+            anchor.onTargetLost = () => {
+                video.pause();
+                video.style.display = 'none';
+            };
+        }
+
+        start();
+    </script>
 </body>
 </html>
